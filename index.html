@@ -886,13 +886,15 @@ var RULES = {
    "name": "Daily News",
    "kind": "บทความ: ทักษา และไคโร"
   }
- ]
+ ],
+ "notPlate": "ฤซฏฑฝฟ",
+ "notPlateNote": "อักษรที่ไม่ได้เปิดใช้ในหมวดทะเบียนปัจจุบัน (แจ้งโดยเจ้าของเว็บ)"
 };
 </script>
 <script>(function (root, f) { if (typeof module === 'object' && module.exports) module.exports = f; else root.PlateEngine = f; })(this, function (R) {
   var LV = {};
   Object.keys(R.letters).forEach(function (v) { R.letters[v].split('').forEach(function (c) { LV[c] = +v; }); });
-  var LETTERS = Object.keys(LV).filter(function (c) { return c !== 'อ' && c !== 'ฤ'; }).sort(function (a, b) { return a.localeCompare(b, 'th'); });
+  var LETTERS = Object.keys(LV).filter(function (c) { return (R.notPlate || 'ฤ').indexOf(c) < 0; }).sort(function (a, b) { return a.localeCompare(b, 'th'); });
   function letterValue(c) { return LV[c]; }
   function digitSum(s) { return String(s).split('').reduce(function (a, d) { return a + (+d); }, 0); }
   function plateSum(prefix, l1, l2, num) { return +prefix + LV[l1] + LV[l2] + digitSum(num); }
