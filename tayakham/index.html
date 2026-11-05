@@ -211,6 +211,10 @@ input[type="text"], .prow input {
 .catchip { font-family: var(--f-display); font-size: 16px; background: var(--stage); color: #fff; border-radius: 999px; padding: 3px 16px; margin-bottom: 4px; }
 .emoji { font-size: clamp(90px, 32vh, 270px); line-height: 1.05; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
 .word { font-family: var(--f-display); color: var(--stage); font-size: clamp(44px, 10vw, 128px); line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+.chiprow { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 4px; }
+.chiprow .catchip { margin-bottom: 0; }
+.lvlchip { font-family: var(--f-display); font-size: 16px; border: 2px solid var(--stage); color: var(--stage); border-radius: 999px; padding: 1px 14px; }
+.lvlchip.x2 { background: #FFD43B; border-color: #FFD43B; color: #3D2C00; }
 .flash { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; }
 .stage.f-ok .flash { animation: fl .35s ease-out; background: #16A34A; }
 .stage.f-skip .flash { animation: fl .35s ease-out; background: #F59E0B; }
@@ -273,13 +277,13 @@ input[type="text"], .prow input {
         <ol class="how">
           <li><span>ให้ผู้เล่นหนึ่งคนนั่งหันหลังให้จอ ส่วนเพื่อนๆ นั่งดูจอ</span></li>
           <li><span>เพื่อนๆ ใบ้คำที่เห็นด้วยการพูดหรือทำท่า แต่ห้ามพูดคำนั้นตรงๆ</span></li>
-          <li><span>ทายถูกกด “ถูก” ได้ 1 คะแนน ยากไปกด “ข้าม” แล้วไปคำต่อไป</span></li>
+          <li><span>ทายถูกกด “ถูก” ได้ 1 คะแนน ติดป้าย “โหด” ได้ 2 คะแนน ยากไปกด “ข้าม” แล้วไปคำต่อไป</span></li>
         </ol>
       </header>
 
       <form class="panel" id="setup-form" novalidate>
         <fieldset>
-          <legend>ผู้เล่น</legend>
+          <legend>ผู้เล่น (สูงสุด 5 คน)</legend>
           <div id="players" style="display:grid;gap:8px"></div>
           <button type="button" class="ghost addbtn" id="add-player">+ เพิ่มผู้เล่น</button>
         </fieldset>
@@ -293,6 +297,12 @@ input[type="text"], .prow input {
             <div class="lab" id="lab-rnd">จำนวนรอบ</div>
             <div class="segrow" id="seg-rnd" role="group" aria-labelledby="lab-rnd"></div>
           </div>
+        </div>
+
+        <div>
+          <div class="lab" id="lab-lvl">ระดับความยาก</div>
+          <div class="segrow" id="seg-lvl" role="group" aria-labelledby="lab-lvl"></div>
+          <p class="hint" id="lvlinfo" style="margin-top:8px"></p>
         </div>
 
         <fieldset>
@@ -323,6 +333,7 @@ input[type="text"], .prow input {
         <li>คนทายนั่งหันหลังให้จอ ห้ามแอบดู</li>
         <li>เพื่อนๆ ใบ้ด้วยคำพูดหรือท่าทาง แต่ห้ามพูดคำที่อยู่บนจอ</li>
         <li>ปุ่ม “ถูก” กดเมื่อคนทายตอบได้ ปุ่ม “ข้าม” กดเมื่อติด</li>
+        <li>คำที่ติดป้าย “โหด” ได้ 2 คะแนน</li>
       </ul>
       <div class="actrow"><button class="go" id="h-start" data-focus>พร้อมแล้ว เริ่มนับถอยหลัง</button></div>
       <button class="linkbtn" id="h-quit">กลับไปตั้งค่า</button>
@@ -346,7 +357,7 @@ input[type="text"], .prow input {
       <button type="button" class="pausebtn" id="pause">พัก</button>
     </div>
     <div class="card" id="card">
-      <span class="catchip" id="catchip"></span>
+      <div class="chiprow"><span class="catchip" id="catchip"></span><span class="lvlchip" id="lvlchip" hidden></span></div>
       <div class="emoji" id="emoji" aria-hidden="true"></div>
       <div class="word" id="word"></div>
       <div class="flash"></div>
@@ -405,7 +416,9 @@ input[type="text"], .prow input {
     act:   { name: 'ท่าทาง',       color: '#1971C2' },
     place: { name: 'สถานที่',      color: '#6741D9' },
     talk:  { name: 'ประโยคติดปาก', color: '#0B7285' },
-    stuff: { name: 'ของพกติดตัว',  color: '#A16207' }
+    stuff: { name: 'ของพกติดตัว',  color: '#A16207' },
+    job:   { name: 'อาชีพ',        color: '#495057' },
+    idiom: { name: 'สำนวนไทย',    color: '#862E9C' }
   };
 
   // [หมวด, ภาพ, คำ, จำนวนพยางค์]  ทุกคำไม่เกิน 4 พยางค์
@@ -528,7 +541,68 @@ input[type="text"], .prow input {
     ['stuff','🎾','เทนนิส',2], ['stuff','🏐','วอลเลย์บอล',3], ['stuff','🎲','ลูกเต๋า',2], ['stuff','🃏','ไพ่',1],
     ['stuff','🪁','ว่าว',1], ['stuff','🎻','ไวโอลิน',3], ['stuff','🎺','แตร',1], ['stuff','🥁','กลอง',1]
   ];
-  var WORDS = RAW.map(function (r) { return { c: r[0], e: r[1], t: r[2], s: r[3] }; });
+  // คำยากและคำโหด [หมวด, ภาพ, คำ, พยางค์, ระดับ 2=ยาก 3=โหด x2]
+  var RAW2 = [
+    ['home','🧯','ถังดับเพลิง',3,2], ['home','🕸️','ใยแมงมุม',3,2], ['home','🪤','กับดักหนู',3,2], ['home','🥫','อาหารกระป๋อง',4,2],
+    ['home','🧴☀️','ครีมกันแดด',3,2], ['home','🔋','ถ่านไฟฉาย',3,2], ['home','📻','วิทยุ',3,2], ['home','🕰️','นาฬิกาแขวน',4,2],
+    ['home','🧥🪝','ไม้แขวนเสื้อ',3,2], ['home','🧵','เข็มกับด้าย',3,3], ['home','🍳🔥','เตาแก๊ส',2,2], ['home','🦟🥅','มุ้งลวด',2,3],
+    ['home','🫧','ฟองสบู่',3,2], ['home','🚰💧','ก๊อกน้ำรั่ว',3,3], ['home','📺🎛️','รีโมททีวี',4,2], ['home','🧊❄️','ช่องแช่แข็ง',3,3],
+
+    ['animal','🦎','ตุ๊กแก',2,2], ['animal','🦥','สลอธ',2,3], ['animal','🦩','นกฟลามิงโก',4,2], ['animal','🦚','นกยูงรำแพน',4,3],
+    ['animal','🐙','ปลาหมึกยักษ์',3,2], ['animal','🐡','ปลาปักเป้า',3,2], ['animal','🐍👑','งูจงอาง',3,2], ['animal','🦭','แมวน้ำ',2,2],
+    ['animal','🐪','อูฐ',1,2], ['animal','🦙','ลามะ',2,3], ['animal','🐹','หนูตะเภา',3,3], ['animal','🦜🗣️','นกแก้วพูด',3,2],
+    ['animal','🐕‍🦺','หมาตำรวจ',3,3], ['animal','🐔🥚','แม่ไก่ฟักไข่',4,3], ['animal','🐟🎣','ปลาติดเบ็ด',3,2], ['animal','🐝🏠','ผึ้งทำรัง',3,3],
+    ['animal','🦟😖','ยุงกัด',2,2], ['animal','🐶🦴','หมาแทะกระดูก',4,3], ['animal','🐱🐟','แมวขโมยปลา',4,3], ['animal','🐒🍌','ลิงกินกล้วย',3,2],
+    ['animal','🐘💦','ช้างพ่นน้ำ',3,2], ['animal','🦪','หอยนางรม',3,3], ['animal','🐍🌊','ปลาไหล',2,3], ['animal','🦎🌈','กิ้งก่า',2,2],
+    ['animal','🐜🪵','ปลวก',1,3],
+
+    ['food','🥬🔥','ผัดผักบุ้ง',3,2], ['food','🥥🍨','ไอติมกะทิ',4,2], ['food','🍮','ขนมครก',3,3], ['food','🥠','ขนมเปี๊ยะ',3,3],
+    ['food','🍧','น้ำแข็งไส',3,2], ['food','🍲','ต้มจืด',2,2], ['food','🥩🔥','หมูกระทะ',3,2], ['food','🍗🔥','ไก่ย่าง',2,2],
+    ['food','🌶️🥵','พริกขี้หนู',3,3], ['food','🍳','ไข่ดาว',2,2], ['food','🥚🍯','ไข่ลูกเขย',3,3], ['food','🥤🧊','ชาเย็น',2,2],
+    ['food','🧋🥛','ชานมเย็น',3,2], ['food','🍵🍋','ชามะนาว',3,2], ['food','☕🧊','กาแฟเย็น',3,2], ['food','🍜📦','บะหมี่ซอง',3,2],
+    ['food','🍚🍳','ข้าวไข่เจียว',3,2], ['food','🥣','ข้าวต้ม',2,2], ['food','🍜🥢','ขนมจีน',3,3], ['food','🍊','ส้มโอ',2,2],
+    ['food','🍒','ลำไย',2,3], ['food','🍑🔴','ลิ้นจี่',2,3], ['food','🍇🟣','มังคุด',2,3], ['food','🍈🔥','ทุเรียนทอด',3,3],
+
+    ['act','🥱📖','ง่วงตอนเรียน',3,2], ['act','😴🚌','หลับบนรถ',3,2], ['act','🏃🚌','วิ่งไล่รถเมล์',4,3], ['act','🪪📸','ถ่ายรูปติดบัตร',4,3],
+    ['act','🥶🚿','อาบน้ำเย็น',3,2], ['act','👟🪢','ผูกเชือกรองเท้า',4,3], ['act','🪜','ปีนบันได',3,2], ['act','🏊🐸','ว่ายน้ำท่ากบ',4,3],
+    ['act','🏐🦵','เตะตะกร้อ',3,3], ['act','🏍️🪖','ใส่หมวกกันน็อก',4,2], ['act','🚦🛑','รอไฟแดง',3,2], ['act','🛒📋','จดรายการ',3,3],
+    ['act','🪙🐷','หยอดกระปุก',3,3], ['act','🙏👴','ไหว้ผู้ใหญ่',3,2], ['act','😳📱','ทำมือถือตก',4,3], ['act','🥱🌙','นอนไม่หลับ',3,2],
+    ['act','😵‍💫','เวียนหัว',2,2], ['act','🤕','ปวดหัว',2,2], ['act','🪒','โกนหนวด',2,2], ['act','💅','ทาเล็บ',2,2],
+    ['act','🫣','แอบดู',2,2], ['act','🙄','กลอกตา',2,2], ['act','🫠','ร้อนจนละลาย',4,3], ['act','🥹','ซึ้งใจ',2,3],
+    ['act','🦷😖','ปวดฟัน',2,2], ['act','🛕🍚','ตักบาตร',2,3], ['act','🧍🧍🧍','เข้าแถว',2,2], ['act','🎒🏃','โดดเรียน',2,3],
+    ['act','✏️📝','ทำการบ้าน',3,2],
+
+    ['place','🛕🪔','ลอยกระทง',3,2], ['place','💦🎎','สงกรานต์',2,2], ['place','🎆','ดอกไม้ไฟ',3,2], ['place','🏟️','สนามกีฬา',4,2],
+    ['place','🚉🧍','รอรถไฟฟ้า',4,3], ['place','🛫','ขึ้นเครื่องบิน',3,2], ['place','⛰️','ยอดเขา',2,2], ['place','🏜️','ทะเลทราย',3,2],
+    ['place','🌋','ภูเขาไฟ',3,2], ['place','🏚️👻','บ้านผีสิง',3,2], ['place','🎢','รถไฟเหาะ',3,2], ['place','🛝','สไลเดอร์',3,2],
+    ['place','⛺','ตั้งแคมป์',2,2], ['place','🚏⏳','รอรถเมล์',3,3], ['place','🚧','ถนนซ่อม',3,2], ['place','🌃','กลางคืน',2,3],
+    ['place','🕳️','หลุมบ่อ',2,3], ['place','🌉🌙','ใต้สะพาน',3,3], ['place','🚶🛣️','ปากซอย',2,3], ['place','🦓🚶','ทางม้าลาย',3,2],
+
+    ['talk','😮‍💨','โล่งอก',2,3], ['talk','😞','เหนื่อยใจ',2,3], ['talk','🤔💭','คิดไม่ออก',3,2], ['talk','😳','เขินจัง',2,2],
+    ['talk','🥴','ไม่ไหวแล้ว',3,3], ['talk','🤭','ขำก๊าก',2,3], ['talk','🫡','รับทราบ',2,2], ['talk','🤞','ขอให้โชคดี',4,3],
+    ['talk','💔','อกหัก',2,3], ['talk','🥲','ยิ้มทั้งน้ำตา',4,3], ['talk','💼🤝','สัมภาษณ์งาน',3,3], ['talk','⏰🔕','ตั้งเตือนไว้',3,2],
+    ['talk','🏃⏱️','ไม่ทันแล้ว',3,3], ['talk','🧾😱','บิลแพงมาก',3,2], ['talk','🚗🅿️❓','จอดตรงไหน',3,2], ['talk','🔍👛','กระเป๋าหาย',3,2],
+    ['talk','🔍🔑','กุญแจหาย',3,2], ['talk','😵','มึนหัว',2,2], ['talk','💬🤫','นินทา',2,3], ['talk','🤥','โกหก',2,3],
+    ['talk','🤞🎟️','ขอให้ถูกหวย',4,3], ['talk','🎰','ถูกหวย',2,2], ['talk','🔮','ดูดวง',2,3], ['talk','🙏🛕','ขอพรพระ',3,3],
+    ['talk','⛈️','ฝนตกหนัก',3,2], ['talk','💡😅','ลืมปิดไฟ',3,2], ['talk','🔑😅','ลืมกุญแจ',3,2], ['talk','📢','เสียงดังมาก',3,2],
+
+    ['job','👨‍🍳','พ่อครัว',2,2], ['job','👮','ตำรวจ',2,2], ['job','👩‍⚕️','พยาบาล',3,2], ['job','🧑‍✈️','นักบิน',2,2],
+    ['job','🧑‍🌾','ชาวนา',2,2], ['job','🧑‍🏫','ครู',1,2], ['job','🔧🚗','ช่างซ่อมรถ',3,2], ['job','👷','คนงานก่อสร้าง',4,2],
+    ['job','🧑‍🚒','นักดับเพลิง',3,2], ['job','🕵️','นักสืบ',2,2], ['job','🧑‍🎤','นักร้อง',2,2], ['job','⚖️','ทนายความ',3,3],
+    ['job','🧑‍💻','โปรแกรมเมอร์',3,3], ['job','🛵🍱','ไรเดอร์',2,2], ['job','🚖','คนขับแท็กซี่',4,2], ['job','💇‍♀️','ช่างตัดผม',3,2],
+    ['job','🦷🧑‍⚕️','หมอฟัน',2,2], ['job','🎧📻','ดีเจ',2,3], ['job','📺🎙️','พิธีกร',3,3], ['job','🎨','จิตรกร',3,3],
+    ['job','🍜👩','แม่ค้า',2,2], ['job','🧹🏠','แม่บ้าน',2,2], ['job','💂','ยาม',1,2], ['job','🎤📰','นักข่าว',2,3],
+    ['job','📷🧑','ช่างภาพ',2,2], ['job','🥊','นักมวย',2,2], ['job','🎣🚤','ชาวประมง',3,3], ['job','🍽️🙋','พนักงานเสิร์ฟ',4,3],
+
+    ['idiom','🐸🥥','กบในกะลา',4,3], ['idiom','🐅🤫','เสือซ่อนเล็บ',3,3], ['idiom','🐇😱','กระต่ายตื่นตูม',4,3], ['idiom','🙈🐘','ตาบอดคลำช้าง',4,3],
+    ['idiom','🐂🏚️','วัวหายล้อมคอก',4,3], ['idiom','🙏✨','ปิดทองหลังพระ',4,3], ['idiom','🐔💎','ไก่ได้พลอย',3,3], ['idiom','🌊😶','น้ำท่วมปาก',3,3],
+    ['idiom','🐔👗','ไก่งามเพราะขน',4,3], ['idiom','🐒🧐','ลิงหลอกเจ้า',3,3], ['idiom','🐘🦶','ช้างเท้าหลัง',3,3], ['idiom','🔥🪵','ไฟสุมขอน',3,3],
+    ['idiom','🍬🗣️','ปากหวาน',2,2], ['idiom','🌶️🗣️','ปากร้าย',2,2], ['idiom','🧊❤️','ใจเย็น',2,2], ['idiom','🔥❤️','ใจร้อน',2,2],
+    ['idiom','🪨❤️','ใจแข็ง',2,3], ['idiom','⏳💰','เวลาคือเงิน',4,3], ['idiom','🔥🍑','ไฟลนก้น',3,3], ['idiom','🥵🔥','ร้อนเป็นไฟ',3,3],
+    ['idiom','😪🐢','ขี้เกียจ',2,2], ['idiom','🐷🍚','กินจุ',2,2], ['idiom','🐝🗣️','พูดมาก',2,2]
+  ];
+
+  var WORDS = RAW.concat(RAW2).map(function (r) { return { c: r[0], e: r[1], t: r[2], s: r[3], d: r[4] || 1 }; });
 
   /* ---------- settings ---------- */
   var KEY = 'tayakham-hunlang-v1';
@@ -536,15 +610,15 @@ input[type="text"], .prow input {
   var RND_OPTS = [1, 2, 3];
   var DEF = {
     players: ['ผู้เล่น 1', 'ผู้เล่น 2', 'ผู้เล่น 3'],
-    seconds: 60, rounds: 1, cats: Object.keys(CATS), hide: false, sound: true
+    seconds: 60, rounds: 1, cats: Object.keys(CATS), level: 'hard', sound: true, v: 2
   };
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function load() {
     var s = clone(DEF), r = null;
     try { r = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { r = null; }
     if (r && typeof r === 'object') {
-      if (Array.isArray(r.players) && r.players.length >= 1 && r.players.length <= 8) {
-        s.players = r.players.map(function (x) { return String(x == null ? '' : x).slice(0, 16); });
+      if (Array.isArray(r.players) && r.players.length >= 1) {
+        s.players = r.players.slice(0, 5).map(function (x) { return String(x == null ? '' : x).slice(0, 16); });
       }
       if (SEC_OPTS.indexOf(r.seconds) >= 0) s.seconds = r.seconds;
       if (RND_OPTS.indexOf(r.rounds) >= 0) s.rounds = r.rounds;
@@ -552,7 +626,8 @@ input[type="text"], .prow input {
         var c = r.cats.filter(function (k) { return CATS[k]; });
         if (c.length) s.cats = c;
       }
-      if (typeof r.hide === 'boolean') s.hide = r.hide;
+      if (['easy', 'hard', 'mix'].indexOf(r.level) >= 0) s.level = r.level;
+      if (r.v !== 2) ['job', 'idiom'].forEach(function (k) { if (s.cats.indexOf(k) < 0) s.cats.push(k); });
       if (typeof r.sound === 'boolean') s.sound = r.sound;
     }
     return s;
@@ -635,16 +710,17 @@ input[type="text"], .prow input {
       row.appendChild(inp); row.appendChild(rm);
       box.appendChild(row);
     });
-    $('#add-player').disabled = S.players.length >= 8;
+    $('#add-player').disabled = S.players.length >= 5;
+    updateInfo();
   }
-  function seg(id, opts, key, fmt) {
+  function seg(id, opts, key, fmt, cb) {
     var box = $(id);
     box.textContent = '';
     opts.forEach(function (v) {
       var b = el('button', null, fmt(v));
       b.type = 'button';
       b.setAttribute('aria-pressed', String(S[key] === v));
-      b.addEventListener('click', function () { S[key] = v; save(); seg(id, opts, key, fmt); });
+      b.addEventListener('click', function () { S[key] = v; save(); seg(id, opts, key, fmt, cb); if (cb) cb(); });
       box.appendChild(b);
     });
   }
@@ -667,18 +743,34 @@ input[type="text"], .prow input {
       });
       box.appendChild(b);
     });
-    var n = WORDS.filter(function (w) { return S.cats.indexOf(w.c) >= 0; }).length;
-    $('#wordinfo').textContent = 'มี ' + n + ' คำใน ' + S.cats.length + ' หมวด ทุกคำไม่เกิน 4 พยางค์';
+    updateInfo();
+  }
+  var LVL_NAME = { easy: 'ง่าย', hard: 'ยาก', mix: 'ผสม' };
+  var LVL_HINT = {
+    easy: 'คำง่าย เห็นภาพแล้วรู้ทันที',
+    hard: 'คำยาก ต้องใบ้หรือทำท่าให้ดีๆ คำที่ติดป้าย “โหด” ได้ 2 คะแนน',
+    mix: 'ผสมทุกระดับ มีทั้งคำง่ายและคำโหด'
+  };
+  function updateLvl() { $('#lvlinfo').textContent = LVL_HINT[S.level]; }
+  function inLevel(w) { return S.level === 'easy' ? w.d === 1 : S.level === 'hard' ? w.d >= 2 : true; }
+  function updateInfo() {
+    var n = WORDS.filter(function (w) { return S.cats.indexOf(w.c) >= 0 && inLevel(w); }).length;
+    var need = S.players.length * S.rounds;
+    var t = 'มี ' + n + ' คำในระดับนี้ ไม่ซ้ำกันตลอดเกม ทุกคำไม่เกิน 4 พยางค์';
+    if (Math.floor(n / 15) < need) t += ' คำอาจไม่พอ ระบบจะเติมคำระดับอื่นให้';
+    $('#wordinfo').textContent = t;
   }
   function renderSetup() {
     renderPlayers();
     seg('#seg-sec', SEC_OPTS, 'seconds', function (v) { return String(v); });
-    seg('#seg-rnd', RND_OPTS, 'rounds', function (v) { return v + ' รอบ'; });
+    seg('#seg-rnd', RND_OPTS, 'rounds', function (v) { return v + ' รอบ'; }, updateInfo);
+    seg('#seg-lvl', ['easy', 'hard', 'mix'], 'level', function (v) { return LVL_NAME[v]; }, function () { updateLvl(); updateInfo(); });
+    updateLvl();
     renderChips();
     $('#opt-sound').checked = S.sound;
   }
   $('#add-player').addEventListener('click', function () {
-    if (S.players.length >= 8) return;
+    if (S.players.length >= 5) return;
     S.players.push('');
     save(); renderPlayers();
     var last = $('#player-' + (S.players.length - 1));
@@ -693,36 +785,47 @@ input[type="text"], .prow input {
   function names() {
     return S.players.map(function (n, i) { return (n || '').trim() || ('ผู้เล่น ' + (i + 1)); });
   }
-  function buildDeck() {
-    var idx = [];
-    WORDS.forEach(function (w, i) { if (S.cats.indexOf(w.c) >= 0) idx.push(i); });
-    for (var i = idx.length - 1; i > 0; i--) {
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
-      var t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+      var t = a[i]; a[i] = a[j]; a[j] = t;
     }
-    G.deck = idx; G.di = 0;
+    return a;
+  }
+  // สำรับเดียวตลอดเกม: คำในระดับที่เลือกก่อน แล้วค่อยต่อด้วยคำระดับอื่น ไม่หยิบคำเดิมซ้ำจนกว่าคำจะหมดจริงๆ
+  function buildDeck() {
+    var pool = [], rest = [];
+    WORDS.forEach(function (w, i) {
+      if (S.cats.indexOf(w.c) < 0) return;
+      (inLevel(w) ? pool : rest).push(i);
+    });
+    G.deck = shuffle(pool).concat(shuffle(rest));
+    G.di = 0;
   }
   function draw() {
-    if (G.di >= G.deck.length) buildDeck();
-    var w = WORDS[G.deck[G.di++]];
-    if (w === G.cur && G.deck.length > 1) {
-      if (G.di >= G.deck.length) buildDeck();
-      w = WORDS[G.deck[G.di++]];
+    if (G.di >= G.deck.length) {
+      var last = G.cur;
+      buildDeck();
+      if (last && G.deck.length > 1 && WORDS[G.deck[0]] === last) {
+        var t = G.deck[0]; G.deck[0] = G.deck[1]; G.deck[1] = t;
+      }
     }
-    return w;
+    return WORDS[G.deck[G.di++]];
   }
+  function pts(arr) { return arr.reduce(function (a, w) { return a + (w.d === 3 ? 2 : 1); }, 0); }
 
-  function startGame() {
+  function startGame(keepDeck) {
     initAudio(); wake();
     var nm = names();
     var turns = [];
     for (var r = 1; r <= S.rounds; r++) nm.forEach(function (n, pi) { turns.push({ pi: pi, r: r }); });
+    var prev = keepDeck && G ? { deck: G.deck, di: G.di } : null;
     G = {
       nm: nm, turns: turns, t: 0, scores: nm.map(function () { return 0; }),
       deck: [], di: 0, cur: null, correct: [], skipped: [], timer: null, cd: null,
       paused: false, endAt: 0, rem: 0, total: S.seconds * 1000, lastAns: 0, lastSec: -1
     };
-    buildDeck();
+    if (prev && prev.di < prev.deck.length) { G.deck = prev.deck; G.di = prev.di; } else buildDeck();
     showHand();
   }
 
@@ -784,6 +887,10 @@ input[type="text"], .prow input {
     document.body.style.setProperty('--stage', c.color);
     $('#v-play').style.setProperty('--stage', c.color);
     $('#catchip').textContent = c.name;
+    var lc = $('#lvlchip');
+    lc.hidden = w.d === 1;
+    lc.textContent = w.d === 3 ? 'โหด ×2' : 'ยาก';
+    lc.className = 'lvlchip' + (w.d === 3 ? ' x2' : '');
     $('#emoji').textContent = w.e;
     $('#word').textContent = w.t;
     var card = $('#card');
@@ -801,7 +908,7 @@ input[type="text"], .prow input {
     var now = performance.now();
     if (now - G.lastAns < 220) return;
     G.lastAns = now;
-    if (ok) { G.correct.push(G.cur); $('#score').textContent = G.correct.length; sndOk(); }
+    if (ok) { G.correct.push(G.cur); $('#score').textContent = pts(G.correct); sndOk(); }
     else { G.skipped.push(G.cur); sndSkip(); }
     flash(ok);
     nextWord();
@@ -836,7 +943,7 @@ input[type="text"], .prow input {
   }
 
   function wordItem(w) {
-    var li = el('li', null, w.e + ' ' + w.t);
+    var li = el('li', null, w.e + ' ' + w.t + (w.d === 3 ? ' ×2' : ''));
     return li;
   }
   function fillList(id, arr, emptyText) {
@@ -850,11 +957,11 @@ input[type="text"], .prow input {
   function endTurn() {
     stopTimers();
     var t = G.turns[G.t];
-    G.scores[t.pi] += G.correct.length;
+    G.scores[t.pi] += pts(G.correct);
     sndEnd();
     $('#v-play').classList.remove('urgent', 'f-ok', 'f-skip');
     $('#r-name').textContent = G.nm[t.pi];
-    $('#r-score').textContent = G.correct.length;
+    $('#r-score').textContent = pts(G.correct);
     fillList('#r-ok', G.correct, 'ยังไม่มีคำที่ทายถูก');
     fillList('#r-sk', G.skipped, 'ไม่ได้ข้ามคำไหน');
     $('#r-totals').textContent = 'คะแนนรวม: ' + G.nm.map(function (n, i) { return n + ' ' + G.scores[i]; }).join(' · ');
@@ -900,7 +1007,7 @@ input[type="text"], .prow input {
     G.t++;
     if (G.t >= G.turns.length) showFinal(); else showHand();
   });
-  $('#f-again').addEventListener('click', startGame);
+  $('#f-again').addEventListener('click', function () { startGame(true); });
   $('#f-setup').addEventListener('click', quit);
 
   document.addEventListener('keydown', function (e) {
