@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="เกมทายคำใบ้ภาพ คนทายหันหลังให้จอ เพื่อนใบ้ให้ ทายให้ได้มากที่สุดใน 1 นาที">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>ทายคำหันหลัง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Prompt:wght@400;500;600&display=swap">
+<style>
+/* Layout: one app shell, six full-height views (setup, hand-off, countdown, play, result, final).
+   The play view floods the screen with the word's category colour so friends read the category at a glance. */
+:root {
+  --bg: #EDF0FC;
+  --fg: #191C3A;
+  --muted: #575C85;
+  --surface: #FFFFFF;
+  --line: #D3D8F0;
+  --chip: #E1E5F8;
+  --accent: #3340E0;
+  --on-accent: #FFFFFF;
+  --good: #0F8A4B;
+  --skip: #B45309;
+  --danger: #C62833;
+  --stage: #1971C2;
+  --stage-card: #FFFFFF;
+  --stage-ink: #191C3A;
+  --f-display: 'Mitr', 'Prompt', system-ui, sans-serif;
+  --f-body: 'Prompt', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101230; --fg: #ECEEFF; --muted: #A3A8D6; --surface: #1A1D45; --line: #32366B;
+    --chip: #262A5C; --accent: #97A2FF; --on-accent: #0E1030; --good: #4CD38B; --skip: #F2A65A; --danger: #FF7B84;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101230; --fg: #ECEEFF; --muted: #A3A8D6; --surface: #1A1D45; --line: #32366B;
+  --chip: #262A5C; --accent: #97A2FF; --on-accent: #0E1030; --good: #4CD38B; --skip: #F2A65A; --danger: #FF7B84;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.55;
+  transition: background-color .25s;
+}
+body.playing { background: var(--stage); }
+* { box-sizing: border-box; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.stage :focus-visible { outline-color: #fff; }
+
+#app { min-height: 100%; display: flex; flex-direction: column; }
+.view { flex: 1; display: flex; flex-direction: column; }
+.g { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+h1, h2, h3 { font-family: var(--f-display); font-weight: 500; margin: 0; line-height: 1.2; text-wrap: balance; }
+
+/* ---------- setup ---------- */
+.setup {
+  width: 100%; max-width: 1080px; margin: 0 auto; padding-block: 28px 40px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 36px; align-items: start;
+}
+.hero h1 { font-size: clamp(40px, 7vw, 68px); letter-spacing: -0.01em; }
+.lede { font-size: 18px; color: var(--muted); margin: 10px 0 0; max-width: 34ch; }
+.fan { display: flex; gap: 14px; margin: 30px 0 28px; flex-wrap: wrap; padding-left: 4px; }
+.demo {
+  background: var(--surface); border: 2px solid var(--fg); border-radius: 18px; padding: 12px 16px 10px;
+  text-align: center; box-shadow: 6px 6px 0 var(--c); min-width: 104px;
+}
+.demo b { display: block; font-size: 46px; line-height: 1.1; font-weight: 400; }
+.demo span { font-family: var(--f-display); font-size: 17px; }
+.demo:nth-child(1) { transform: rotate(-4deg); }
+.demo:nth-child(2) { transform: rotate(2deg) translateY(6px); }
+.demo:nth-child(3) { transform: rotate(-2deg); }
+.how { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: s; }
+.how li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+.how li::before {
+  content: counter(s); width: 34px; height: 34px; border-radius: 50%; background: var(--fg); color: var(--bg);
+  display: grid; place-items: center; font-family: var(--f-display); font-size: 16px;
+}
+.how li span { padding-top: 3px; }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 24px;
+  display: grid; gap: 24px; min-width: 0;
+}
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 10px; }
+legend, .lab { font-family: var(--f-display); font-size: 17px; padding: 0; margin-bottom: 8px; }
+.hint { color: var(--muted); font-size: 14px; margin: 0; }
+.prow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+input[type="text"], .prow input {
+  background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 14px; min-width: 0; width: 100%;
+}
+.prow input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.ghost {
+  background: transparent; border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 14px; color: var(--muted);
+}
+.ghost:hover:not(:disabled) { border-color: var(--fg); color: var(--fg); }
+.ghost:disabled { opacity: .4; cursor: not-allowed; }
+.addbtn { justify-self: start; }
+.segrow { display: flex; gap: 6px; flex-wrap: wrap; }
+.segrow button {
+  background: var(--bg); border: 1.5px solid var(--line); border-radius: 999px; padding: 8px 18px; min-height: 42px;
+}
+.segrow button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.twocol { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 24px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; border: 2px solid var(--c); background: transparent; color: var(--fg);
+  border-radius: 999px; padding: 7px 14px; min-height: 42px;
+}
+.chip small { opacity: .75; font-size: 13px; }
+.chip[aria-pressed="true"] { background: var(--c); color: #fff; }
+.chip[aria-pressed="false"] { border-color: var(--line); }
+.checks { display: grid; gap: 10px; }
+.check { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; cursor: pointer; }
+.check input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--accent); }
+.check span small { display: block; color: var(--muted); font-size: 14px; }
+.go {
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 18px; min-height: 64px;
+  font-family: var(--f-display); font-size: 24px; letter-spacing: .01em;
+}
+.go:hover { filter: brightness(1.08); }
+.go:active { transform: translateY(1px); }
+.info { text-align: center; }
+
+/* ---------- centered views (hand-off, countdown, result, final) ---------- */
+.center {
+  flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding-block: 28px 36px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px;
+}
+.tag { font-family: var(--f-display); font-size: 18px; color: var(--muted); }
+.bigname {
+  font-family: var(--f-display); font-size: clamp(48px, 12vw, 110px); line-height: 1.1; word-break: break-word; max-width: 100%;
+  color: var(--accent);
+}
+.rules {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 18px 22px; text-align: left;
+  display: grid; gap: 8px; width: 100%; max-width: 560px; margin: 0; list-style: none;
+}
+.rules li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; }
+.rules li::before { content: "•"; color: var(--accent); font-size: 22px; line-height: 1.3; text-align: center; }
+.actrow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
+.actrow .go { flex: 1 1 260px; max-width: 420px; padding-inline: 20px; }
+.linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 10px; }
+
+.count-n {
+  font-family: var(--f-display); font-size: min(56vmin, 360px); line-height: 1; color: var(--accent);
+  animation: beat .8s ease-out;
+}
+@keyframes beat { from { transform: scale(1.35); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+
+.scorebig { font-family: var(--f-display); font-size: clamp(72px, 18vw, 150px); line-height: 1; color: var(--good); }
+.scorebig small { font-size: .3em; color: var(--muted); margin-left: 8px; }
+.lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; width: 100%; text-align: left; }
+.lcard { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px 18px; min-width: 0; }
+.lcard h3 { font-size: 18px; margin-bottom: 10px; }
+.lcard.ok h3 { color: var(--good); }
+.lcard.sk h3 { color: var(--skip); }
+.wl { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.wl li { background: var(--chip); border-radius: 999px; padding: 3px 12px 3px 8px; font-size: 15px; white-space: nowrap; }
+.wl.none li { background: none; color: var(--muted); padding-left: 0; }
+.totals { color: var(--muted); font-size: 15px; margin: 0; }
+
+.board { width: 100%; display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; text-align: left; }
+.brow {
+  display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 12px 16px; position: relative; overflow: hidden;
+}
+.brow .fill { position: absolute; inset: 0 auto 0 0; background: var(--chip); z-index: 0; }
+.brow > *:not(.fill) { position: relative; z-index: 1; }
+.rank { font-family: var(--f-display); font-size: 24px; color: var(--muted); text-align: center; }
+.brow.first { border-color: var(--accent); border-width: 2px; }
+.brow.first .rank { color: var(--accent); }
+.bn { font-family: var(--f-display); font-size: 20px; overflow-wrap: anywhere; }
+.bs { font-family: var(--f-display); font-size: 28px; }
+.champ { font-family: var(--f-display); font-size: clamp(34px, 8vw, 60px); color: var(--accent); line-height: 1.15; }
+
+/* ---------- play stage ---------- */
+.stage {
+  background: var(--stage); color: #fff; flex: 1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 14px;
+  padding-block: 14px 18px; transition: background-color .25s;
+}
+.hud { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 14px; align-items: center; }
+.who { font-family: var(--f-display); font-size: 18px; max-width: 26vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar { height: 14px; border-radius: 99px; background: rgba(255,255,255,.3); overflow: hidden; }
+.bar i { display: block; height: 100%; background: #fff; transform-origin: left center; transition: transform .1s linear, background-color .2s; }
+.timer { font-family: var(--f-display); font-size: clamp(40px, 8vw, 68px); line-height: 1; min-width: 2.1ch; text-align: right; font-variant-numeric: tabular-nums; }
+.stage.urgent .bar i { background: #FFE066; }
+.stage.urgent .timer { color: #FFE066; animation: tickpulse 1s infinite; }
+@keyframes tickpulse { 50% { transform: scale(1.12); } }
+.pausebtn { background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.7); color: #fff; border-radius: 12px; padding: 8px 14px; min-height: 42px; }
+
+.card {
+  position: relative; background: var(--stage-card); color: var(--stage-ink); border-radius: 30px; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px 18px; text-align: center;
+  box-shadow: 0 10px 0 rgba(0,0,0,.18); overflow: hidden;
+}
+.card.pop { animation: pop .22s ease-out; }
+@keyframes pop { from { transform: scale(.94) rotate(-1.5deg); opacity: .4; } to { transform: none; opacity: 1; } }
+.catchip { font-family: var(--f-display); font-size: 16px; background: var(--stage); color: #fff; border-radius: 999px; padding: 3px 16px; margin-bottom: 4px; }
+.emoji { font-size: clamp(90px, 32vh, 270px); line-height: 1.05; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+.word { font-family: var(--f-display); color: var(--stage); font-size: clamp(44px, 10vw, 128px); line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+.flash { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; }
+.stage.f-ok .flash { animation: fl .35s ease-out; background: #16A34A; }
+.stage.f-skip .flash { animation: fl .35s ease-out; background: #F59E0B; }
+@keyframes fl { from { opacity: .55; } to { opacity: 0; } }
+
+.pauselayer {
+  position: absolute; inset: 0; background: var(--stage-card); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px;
+}
+.pauselayer h2 { font-size: 44px; }
+.pauselayer .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.pbtn { background: var(--stage); color: #fff; border: 0; border-radius: 16px; padding: 14px 28px; font-family: var(--f-display); font-size: 20px; min-height: 54px; }
+.pbtn.alt { background: transparent; color: var(--stage-ink); border: 2px solid #C5C9E6; }
+
+.actions { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; }
+.act {
+  min-height: clamp(72px, 14vh, 120px); border-radius: 24px; font-family: var(--f-display); font-size: clamp(26px, 5vw, 40px);
+  display: flex; align-items: center; justify-content: center; gap: 12px; border: 3px solid #fff;
+}
+.act.skip { background: transparent; color: #fff; }
+.act.ok { background: #fff; color: var(--stage-ink); }
+.act:active { transform: translateY(2px); }
+.act .n { background: var(--stage); color: #fff; border-radius: 999px; min-width: 1.7em; padding: 0 10px; font-size: .8em; text-align: center; }
+.act kbd { font-family: var(--f-body); font-size: 14px; opacity: .8; border: 1.5px solid currentColor; border-radius: 8px; padding: 0 8px; }
+@media (hover: none) { .act kbd { display: none; } }
+
+@media (max-width: 820px) {
+  .setup { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: 20px 32px; }
+  .panel { padding: 18px; }
+}
+@media (max-width: 520px) {
+  .hud { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .hud .bar { grid-column: 1 / -1; order: 5; }
+  .who { max-width: none; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .emoji { font-size: clamp(70px, 38vh, 200px); }
+  .word { font-size: clamp(36px, 8vw, 80px); }
+  .act { min-height: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+</head>
+<body>
+<main id="app">
+
+  <!-- SETUP -->
+  <section id="v-setup" class="view g">
+    <div class="setup">
+      <header class="hero">
+        <h1>ทายคำหันหลัง</h1>
+        <p class="lede">คนทายนั่งหันหลังให้จอ เพื่อนๆ ดูภาพแล้วใบ้ให้ ใครทายได้มากสุดใน 1 นาทีชนะ</p>
+        <div class="fan" aria-hidden="true">
+          <div class="demo" style="--c:#2B8A3E"><b>🐘</b><span>ช้าง</span></div>
+          <div class="demo" style="--c:#C2255C"><b>🍜</b><span>ก๋วยเตี๋ยว</span></div>
+          <div class="demo" style="--c:#C2410C"><b>⏰</b><span>นาฬิกาปลุก</span></div>
+        </div>
+        <ol class="how">
+          <li><span>ให้ผู้เล่นหนึ่งคนนั่งหันหลังให้จอ ส่วนเพื่อนๆ นั่งดูจอ</span></li>
+          <li><span>เพื่อนๆ ใบ้คำที่เห็นด้วยการพูดหรือทำท่า แต่ห้ามพูดคำนั้นตรงๆ</span></li>
+          <li><span>ทายถูกกด “ถูก” ได้ 1 คะแนน ยากไปกด “ข้าม” แล้วไปคำต่อไป</span></li>
+        </ol>
+      </header>
+
+      <form class="panel" id="setup-form" novalidate>
+        <fieldset>
+          <legend>ผู้เล่น</legend>
+          <div id="players" style="display:grid;gap:8px"></div>
+          <button type="button" class="ghost addbtn" id="add-player">+ เพิ่มผู้เล่น</button>
+        </fieldset>
+
+        <div class="twocol">
+          <div>
+            <div class="lab" id="lab-sec">เวลาต่อตา (วินาที)</div>
+            <div class="segrow" id="seg-sec" role="group" aria-labelledby="lab-sec"></div>
+          </div>
+          <div>
+            <div class="lab" id="lab-rnd">จำนวนรอบ</div>
+            <div class="segrow" id="seg-rnd" role="group" aria-labelledby="lab-rnd"></div>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>หมวดคำ</legend>
+          <div class="chips" id="chips"></div>
+          <p class="hint" id="wordinfo"></p>
+        </fieldset>
+
+        <div class="checks">
+          <label class="check" for="opt-sound">
+            <input type="checkbox" id="opt-sound">
+            <span>เสียงเอฟเฟกต์</span>
+          </label>
+        </div>
+
+        <button class="go" type="submit" data-focus>เริ่มเกม</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- HAND-OFF -->
+  <section id="v-hand" class="view g" hidden>
+    <div class="center">
+      <div class="tag" id="h-meta"></div>
+      <div class="tag">ตาของ</div>
+      <div class="bigname" id="h-name"></div>
+      <ul class="rules">
+        <li>คนทายนั่งหันหลังให้จอ ห้ามแอบดู</li>
+        <li>เพื่อนๆ ใบ้ด้วยคำพูดหรือท่าทาง แต่ห้ามพูดคำที่อยู่บนจอ</li>
+        <li>ปุ่ม “ถูก” กดเมื่อคนทายตอบได้ ปุ่ม “ข้าม” กดเมื่อติด</li>
+      </ul>
+      <div class="actrow"><button class="go" id="h-start" data-focus>พร้อมแล้ว เริ่มนับถอยหลัง</button></div>
+      <button class="linkbtn" id="h-quit">กลับไปตั้งค่า</button>
+    </div>
+  </section>
+
+  <!-- COUNTDOWN -->
+  <section id="v-count" class="view g" hidden>
+    <div class="center">
+      <div class="tag">หันหลังให้จอ แล้วเตรียมตัว</div>
+      <div class="count-n" id="count-n" aria-live="assertive">3</div>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section id="v-play" class="view stage g" hidden>
+    <div class="hud">
+      <div class="who" id="pl-name"></div>
+      <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+      <div class="timer" id="timer" role="timer" aria-label="เวลาที่เหลือ">60</div>
+      <button type="button" class="pausebtn" id="pause">พัก</button>
+    </div>
+    <div class="card" id="card">
+      <span class="catchip" id="catchip"></span>
+      <div class="emoji" id="emoji" aria-hidden="true"></div>
+      <div class="word" id="word"></div>
+      <div class="flash"></div>
+      <div class="pauselayer" id="pauselayer" hidden>
+        <h2>พักเวลา</h2>
+        <div class="row">
+          <button type="button" class="pbtn" id="resume">เล่นต่อ</button>
+          <button type="button" class="pbtn alt" id="quit-play">เลิกเล่น</button>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="act skip" id="skip">ข้าม <kbd>←</kbd></button>
+      <button type="button" class="act ok" id="ok">ถูก <span class="n" id="score">0</span> <kbd>Space</kbd></button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="v-result" class="view g" hidden>
+    <div class="center">
+      <div class="tag">หมดเวลา</div>
+      <div class="bigname" style="font-size:clamp(32px,7vw,56px)" id="r-name"></div>
+      <div class="scorebig"><span id="r-score">0</span><small>คะแนน</small></div>
+      <div class="lists">
+        <div class="lcard ok"><h3>ทายถูก</h3><ul class="wl" id="r-ok"></ul></div>
+        <div class="lcard sk"><h3>ข้าม</h3><ul class="wl" id="r-sk"></ul></div>
+      </div>
+      <p class="totals" id="r-totals"></p>
+      <div class="actrow"><button class="go" id="r-next" data-focus></button></div>
+    </div>
+  </section>
+
+  <!-- FINAL -->
+  <section id="v-final" class="view g" hidden>
+    <div class="center">
+      <div class="tag">จบเกม</div>
+      <div class="champ" id="f-champ"></div>
+      <ol class="board" id="f-board"></ol>
+      <div class="actrow">
+        <button class="go" id="f-again" data-focus>เล่นอีกครั้ง</button>
+        <button class="ghost" id="f-setup" style="min-height:64px;padding-inline:24px">ตั้งค่าใหม่</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- data ---------- */
+  var CATS = {
+    home:  { name: 'ของในบ้าน',   color: '#C2410C' },
+    animal:{ name: 'สัตว์',        color: '#2B8A3E' },
+    food:  { name: 'กินดื่ม',      color: '#C2255C' },
+    act:   { name: 'ท่าทาง',       color: '#1971C2' },
+    place: { name: 'สถานที่',      color: '#6741D9' },
+    talk:  { name: 'ประโยคติดปาก', color: '#0B7285' },
+    stuff: { name: 'ของพกติดตัว',  color: '#A16207' }
+  };
+
+  // [หมวด, ภาพ, คำ, จำนวนพยางค์]  ทุกคำไม่เกิน 4 พยางค์
+  var RAW = [
+    ['home','🪥','แปรงสีฟัน',3], ['home','🚿','ฝักบัว',2], ['home','🛏️','เตียงนอน',2], ['home','📺','โทรทัศน์',3],
+    ['home','🚪🧊','ตู้เย็น',2], ['home','🧹','ไม้กวาด',2], ['home','🪑','เก้าอี้',2], ['home','🛋️','โซฟา',2],
+    ['home','🔑','กุญแจ',2], ['home','🚪','ประตู',2], ['home','💡','หลอดไฟ',2], ['home','⏰','นาฬิกาปลุก',4],
+    ['home','🧺','ตะกร้าผ้า',3], ['home','🚽','โถส้วม',2], ['home','🧴','แชมพู',2], ['home','🪞','กระจก',2],
+    ['home','☔','ร่ม',1], ['home','🔦','ไฟฉาย',2], ['home','🧸','ตุ๊กตาหมี',3], ['home','🔌','ปลั๊กไฟ',2],
+    ['home','🍳','กระทะ',2], ['home','🍴','ช้อนส้อม',2], ['home','🌀','พัดลม',2], ['home','🧼','สบู่',2],
+    ['home','🪣','ถังน้ำ',2], ['home','🍚♨️','หม้อหุงข้าว',3], ['home','❄️💨','แอร์',1], ['home','🛌','ผ้าห่ม',2],
+    ['home','🥢','ตะเกียบ',2], ['home','🧺👕','เครื่องซักผ้า',3], ['home','📞','โทรศัพท์',3],
+
+    ['animal','🐶','หมา',1], ['animal','🐱','แมว',1], ['animal','🐘','ช้าง',1], ['animal','🐒','ลิง',1],
+    ['animal','🐔','ไก่',1], ['animal','🐷','หมู',1], ['animal','🐮','วัว',1], ['animal','🐸','กบ',1],
+    ['animal','🐍','งู',1], ['animal','🐊','จระเข้',3], ['animal','🦎','จิ้งจก',2], ['animal','🐜','มด',1],
+    ['animal','🐟','ปลา',1], ['animal','🐢','เต่า',1], ['animal','🦆','เป็ด',1], ['animal','🐛','หนอน',1],
+    ['animal','🦋','ผีเสื้อ',2], ['animal','🐝','ผึ้ง',1], ['animal','🦟','ยุง',1], ['animal','🐇','กระต่าย',2],
+    ['animal','🦒','ยีราฟ',2], ['animal','🦁','สิงโต',2], ['animal','🐧','เพนกวิน',2], ['animal','🐙','ปลาหมึก',2],
+    ['animal','🦀','ปู',1], ['animal','🦇','ค้างคาว',2], ['animal','🕷️','แมงมุม',2], ['animal','🪳','แมลงสาบ',3],
+    ['animal','🐭','หนู',1], ['animal','🦕','ไดโนเสาร์',3], ['animal','🕊️','นกพิราบ',3], ['animal','🐠','ปลาทอง',2],
+
+    ['food','🍜','ก๋วยเตี๋ยว',2], ['food','🍛','ข้าวผัด',2], ['food','🍳','ไข่เจียว',2], ['food','🥭','มะม่วง',2],
+    ['food','🍌','กล้วย',1], ['food','🍉','แตงโม',2], ['food','🍍','สับปะรด',3], ['food','🍦','ไอศกรีม',3],
+    ['food','☕','กาแฟ',2], ['food','🧋','ชานมไข่มุก',4], ['food','🍗','ไก่ทอด',2], ['food','🌶️','พริก',1],
+    ['food','🍢','หมูปิ้ง',2], ['food','🍕','พิซซ่า',2], ['food','🍔','แฮมเบอร์เกอร์',3], ['food','🥚','ไข่ต้ม',2],
+    ['food','🍞','ขนมปัง',3], ['food','🥛','นม',1], ['food','🍬','ลูกอม',2], ['food','🥥','มะพร้าว',2],
+    ['food','🍇','องุ่น',2], ['food','🥗','ส้มตำ',2], ['food','🍲🦐','ต้มยำกุ้ง',3], ['food','🧊','น้ำแข็ง',2],
+    ['food','🍃🍳','ผัดกะเพรา',3], ['food','🥭🍚','ข้าวเหนียวมะม่วง',4], ['food','🥞','โรตี',2], ['food','🍈','ทุเรียน',2],
+    ['food','🍿','ป๊อปคอร์น',2], ['food','🍫','ช็อกโกแลต',3], ['food','🥟','ซาลาเปา',3], ['food','🍡','ลูกชิ้น',2],
+
+    ['act','🏃','วิ่ง',1], ['act','😴','นอนหลับ',2], ['act','🛁','อาบน้ำ',2],
+    ['act','🍽️','กินข้าว',2], ['act','🎤','ร้องเพลง',2], ['act','💃','เต้นรำ',2], ['act','🏊','ว่ายน้ำ',2],
+    ['act','🚴','ปั่นจักรยาน',4], ['act','📖','อ่านหนังสือ',3], ['act','🎮','เล่นเกม',2], ['act','🤧','จาม',1],
+    ['act','🥱','หาว',1], ['act','🤣','หัวเราะ',2], ['act','😭','ร้องไห้',2], ['act','🤳','เซลฟี่',2],
+    ['act','🍽️🧽','ล้างจาน',2], ['act','👕🫧','ซักผ้า',2], ['act','🚗','ขับรถ',2], ['act','🛒','ซื้อของ',2],
+    ['act','💪','ออกกำลังกาย',4], ['act','🙏','สวัสดี',3], ['act','📸','ถ่ายรูป',2], ['act','💇','ตัดผม',2],
+    ['act','💄','แต่งหน้า',2], ['act','👔♨️','รีดผ้า',2], ['act','🏸','ตีแบดมินตัน',4], ['act','🍳👩‍🍳','ทำอาหาร',3],
+    ['act','🦶💆','นวดเท้า',2],
+
+    ['place','🏫','โรงเรียน',2], ['place','🏥','โรงพยาบาล',4], ['place','🛕','วัด',1], ['place','🏖️','ชายหาด',2],
+    ['place','🚉','รถไฟฟ้า',3], ['place','✈️','สนามบิน',3], ['place','🛍️','ห้าง',1], ['place','🚏','ป้ายรถเมล์',3],
+    ['place','🌃🛒','ตลาดนัด',3], ['place','🏊‍♂️','สระว่ายน้ำ',3], ['place','⛽','ปั๊มน้ำมัน',3], ['place','🏦','ธนาคาร',3],
+    ['place','🏪','ร้านสะดวกซื้อ',4], ['place','💈','ร้านตัดผม',3], ['place','🎬','โรงหนัง',2], ['place','🎡','สวนสนุก',3],
+    ['place','🚻','ห้องน้ำ',2], ['place','🛗','ลิฟต์',1], ['place','🪜','บันได',2], ['place','🦓','สวนสัตว์',2],
+    ['place','🛶','ตลาดน้ำ',3],
+
+    ['talk','😋','อร่อยมาก',3], ['talk','🥵','ร้อนจัง',2], ['talk','🥶','หนาวจัง',2], ['talk','🤤','หิวข้าว',2],
+    ['talk','😴','ง่วงนอน',2], ['talk','🙏','ขอบคุณ',2], ['talk','🏃⏰','สายแล้ว',2], ['talk','💸','แพงจัง',2],
+    ['talk','🌧️','ฝนตก',2], ['talk','🚶❓','ไปไหนมา',3], ['talk','🍚❓','กินข้าวยัง',3], ['talk','😱','ตกใจหมด',3],
+    ['talk','🚗🚗🚗','รถติดมาก',3], ['talk','🙂','ไม่เป็นไร',3], ['talk','🔋❌','แบตหมด',2], ['talk','📶❌','เน็ตหลุด',2],
+    ['talk','🤑','เงินเดือนออก',3], ['talk','🎂','สุขสันต์วันเกิด',4], ['talk','🧋','หวานน้อย',2], ['talk','🤔','ขอคิดก่อน',3],
+    ['talk','🙇','ขอโทษนะ',3], ['talk','👋','เดี๋ยวมานะ',3], ['talk','😌🍽️','อิ่มแล้ว',2], ['talk','🌶️🥵','เผ็ดมาก',2],
+    ['talk','👏','เก่งมาก',2], ['talk','🙏📦','ฝากด้วยนะ',3],
+
+    ['stuff','🎒','กระเป๋า',2], ['stuff','👟','รองเท้า',2], ['stuff','👓','แว่นตา',2], ['stuff','🧢','หมวก',1],
+    ['stuff','💳','บัตรประชาชน',4], ['stuff','🚲','จักรยาน',3], ['stuff','🛵','มอเตอร์ไซค์',3], ['stuff','🚌','รถเมล์',2],
+    ['stuff','🛺','ตุ๊กตุ๊ก',2], ['stuff','🚕','แท็กซี่',2], ['stuff','💵','แบงก์ร้อย',2], ['stuff','🧻','ทิชชู่',2],
+    ['stuff','🖊️','ปากกา',2], ['stuff','✏️','ดินสอ',2], ['stuff','📚','หนังสือ',2], ['stuff','📱','มือถือ',2],
+    ['stuff','💻','คอมพิวเตอร์',3], ['stuff','🎧','หูฟัง',2], ['stuff','⌚','นาฬิกา',3], ['stuff','🎈','ลูกโป่ง',2],
+    ['stuff','⚽','ฟุตบอล',2], ['stuff','👛','กระเป๋าตังค์',3], ['stuff','🔋🔌','พาวเวอร์แบงก์',3], ['stuff','🔌📱','ที่ชาร์จ',2],
+    ['stuff','🔑🚗','กุญแจรถ',3], ['stuff','🧥🌧️','เสื้อกันฝน',3], ['stuff','🕶️','แว่นกันแดด',3],
+    ['stuff','📄','กระดาษ',2],
+
+    ['home','🛏️','ที่นอน',2], ['home','🪥','ยาสีฟัน',3], ['home','🧽','ฟองน้ำ',2], ['home','🗑️','ถังขยะ',3],
+    ['home','🔔🚪','กริ่งประตู',3], ['home','🪟','หน้าต่าง',2], ['home','📅','ปฏิทิน',3], ['home','✂️','กรรไกร',2],
+    ['home','🕯️','เทียน',1], ['home','🌡️','ปรอทวัดไข้',4], ['home','💊','ยาแก้ปวด',3], ['home','🛁','อ่างอาบน้ำ',3],
+    ['home','🧦','ถุงเท้า',2], ['home','👖','กางเกง',2], ['home','👕','เสื้อยืด',2], ['home','🧣','ผ้าพันคอ',3],
+    ['home','🔨','ค้อน',1], ['home','🧲','แม่เหล็ก',2], ['home','🪛','ไขควง',2],
+
+    ['animal','🐴','ม้า',1], ['animal','🐑','แกะ',1], ['animal','🐐','แพะ',1], ['animal','🦌','กวาง',1],
+    ['animal','🐻','หมี',1], ['animal','🐼','แพนด้า',2], ['animal','🐯','เสือ',1], ['animal','🦈','ฉลาม',2],
+    ['animal','🐬','โลมา',2], ['animal','🐳','วาฬ',1], ['animal','🦉','นกฮูก',2], ['animal','🦜','นกแก้ว',2],
+    ['animal','🦅','นกอินทรี',3], ['animal','🦢','หงส์',1], ['animal','🐌','หอยทาก',2], ['animal','🦐','กุ้ง',1],
+    ['animal','🦞','กุ้งมังกร',3], ['animal','🐃','ควาย',1], ['animal','🦏','แรด',1], ['animal','🦛','ฮิปโป',2],
+    ['animal','🦘','จิงโจ้',2], ['animal','🐨','โคอาล่า',3], ['animal','🦧','อุรังอุตัง',4], ['animal','🐿️','กระรอก',2],
+    ['animal','🦔','เม่น',1], ['animal','🐞','เต่าทอง',2], ['animal','🦗','จิ้งหรีด',2], ['animal','🦂','แมงป่อง',2],
+    ['animal','🪰','แมลงวัน',3], ['animal','🐈','ลูกแมว',2],
+
+    ['food','🍎','แอปเปิ้ล',2], ['food','🍊','ส้ม',1], ['food','🍓','สตรอว์เบอร์รี',4], ['food','🍋','มะนาว',2],
+    ['food','🍑','ลูกพีช',2], ['food','🥑','อะโวคาโด',4], ['food','🍅','มะเขือเทศ',3], ['food','🥕','แครอท',2],
+    ['food','🌽','ข้าวโพด',2], ['food','🥔','มันฝรั่ง',3], ['food','🍠','มันเทศ',2], ['food','🧅','หอมใหญ่',2],
+    ['food','🧄','กระเทียม',2], ['food','🥬','ผักกาด',2], ['food','🍄','เห็ด',1], ['food','🥩','สเต็ก',2],
+    ['food','🥓','เบคอน',2], ['food','🌭','ไส้กรอก',2], ['food','🍤','กุ้งทอด',2], ['food','🍣','ซูชิ',2],
+    ['food','🍩','โดนัท',2], ['food','🍪','คุกกี้',2], ['food','🎂','เค้ก',1], ['food','🥤','น้ำอัดลม',3],
+    ['food','🧃','น้ำผลไม้',4], ['food','🍵','ชาเขียว',2], ['food','🥜','ถั่วลิสง',3], ['food','🍯','น้ำผึ้ง',2],
+    ['food','🧈','เนย',1], ['food','🧀','ชีส',1], ['food','🥐','ครัวซองต์',2], ['food','🌮','ทาโก้',2],
+    ['food','🍝','สปาเกตตี',4], ['food','🍘','ข้าวเกรียบ',2],
+
+    ['act','🤸','ตีลังกา',3], ['act','🧘','นั่งสมาธิ',3], ['act','🏋️','ยกน้ำหนัก',3], ['act','🧗','ปีนเขา',2],
+    ['act','🎣','ตกปลา',2], ['act','🛹','เล่นสเก็ต',3], ['act','🏓','ตีปิงปอง',3], ['act','🎯','ปาลูกดอก',3],
+    ['act','🎸','เล่นกีตาร์',3], ['act','🥁','ตีกลอง',2], ['act','🎹','เล่นเปียโน',3], ['act','🤝','จับมือ',2],
+    ['act','🤗','กอด',1], ['act','😘','หอมแก้ม',2], ['act','🤫','เงียบ',1], ['act','😤','โมโห',2],
+    ['act','😍','หลงรัก',2], ['act','🥳','ฉลอง',2], ['act','🤒','ป่วย',1], ['act','🤮','อาเจียน',3],
+    ['act','🚶','เดินเล่น',2], ['act','🧹','กวาดบ้าน',2], ['act','🌱💧','รดน้ำต้นไม้',4], ['act','🐕🚶','พาหมาเดินเล่น',4],
+    ['act','📞🗣️','คุยโทรศัพท์',4], ['act','🧎','คุกเข่า',2], ['act','🏄','โต้คลื่น',2], ['act','🥊','ชกมวย',2],
+
+    ['place','🏯','พิพิธภัณฑ์',4], ['place','📚🏛️','ห้องสมุด',3], ['place','⛪','โบสถ์',1], ['place','🕌','มัสยิด',3],
+    ['place','🌋','ภูเขา',2], ['place','🏝️','เกาะ',1], ['place','🌊','ทะเล',2], ['place','🏞️','น้ำตก',2],
+    ['place','🏘️','หมู่บ้าน',2], ['place','🏢','ตึกสูง',2], ['place','🏭','โรงงาน',2], ['place','🚓','โรงพัก',2],
+    ['place','🏨','โรงแรม',2], ['place','🏕️','แคมป์ปิ้ง',2], ['place','🎪','งานวัด',2], ['place','🚂','รถไฟ',2],
+    ['place','🚢','เรือ',1], ['place','🚁','เฮลิคอปเตอร์',4], ['place','🎠','ม้าหมุน',2], ['place','🛣️','ทางด่วน',2],
+    ['place','🌉','สะพาน',2], ['place','🗼','หอคอย',2], ['place','🅿️','ที่จอดรถ',3], ['place','🚦','สี่แยก',2],
+
+    ['talk','😒','เบื่อจัง',2], ['talk','😤','หงุดหงิด',3], ['talk','🥰','น่ารักจัง',3], ['talk','😫','เหนื่อยจัง',2],
+    ['talk','🤯','งงมาก',2], ['talk','🤷','ไม่รู้เหมือนกัน',4], ['talk','🙅','ไม่เอา',2], ['talk','🙆','โอเค',2],
+    ['talk','💯','สุดยอด',2], ['talk','🤝','ตกลง',2], ['talk','🏃💨','รีบไปเลย',3], ['talk','🐢','ช้าจัง',2],
+    ['talk','🥺','สงสารจัง',3], ['talk','💰🍽️','เลี้ยงเอง',2], ['talk','🥂','ชนแก้ว',2], ['talk','📵','โทรไม่ติด',3],
+    ['talk','🤙','โทรมาหน่อย',3], ['talk','📶😢','สัญญาณไม่ดี',4], ['talk','🔕','ปิดเสียง',2], ['talk','🚌😴','นั่งเลยป้าย',3],
+    ['talk','☝️⏳','รอแป๊บนึง',3], ['talk','😅','ลืมไปเลย',3], ['talk','📚😰','ลืมการบ้าน',3], ['talk','😪','ตื่นสาย',2],
+    ['talk','🌙','ฝันดี',2], ['talk','☀️','อรุณสวัสดิ์',4], ['talk','💐','ยินดีด้วย',3], ['talk','🎉','ปีใหม่',2],
+    ['talk','😷','เป็นหวัด',2], ['talk','🤧','ไม่สบาย',3],
+
+    ['stuff','🧳','กระเป๋าเดินทาง',4], ['stuff','🎟️','ตั๋วหนัง',2], ['stuff','🧾','ใบเสร็จ',2], ['stuff','🪙','เหรียญ',1],
+    ['stuff','🐷💰','กระปุกออมสิน',4], ['stuff','📮','ตู้จดหมาย',3], ['stuff','✉️','ซองจดหมาย',3], ['stuff','📦','กล่องพัสดุ',4],
+    ['stuff','🖨️','เครื่องพิมพ์',3], ['stuff','🧮','เครื่องคิดเลข',3], ['stuff','🖱️','เมาส์',1], ['stuff','⌨️','คีย์บอร์ด',2],
+    ['stuff','📷','กล้องถ่ายรูป',3], ['stuff','🧭','เข็มทิศ',2], ['stuff','🗺️','แผนที่',2], ['stuff','💍','แหวน',1],
+    ['stuff','👑','มงกุฎ',2], ['stuff','📿','สร้อยคอ',2], ['stuff','👔','เนคไท',2], ['stuff','🧤','ถุงมือ',2],
+    ['stuff','🎁','ของขวัญ',2], ['stuff','🥾','รองเท้าบูท',3], ['stuff','🩴','รองเท้าแตะ',3], ['stuff','🏀','บาสเกตบอล',3],
+    ['stuff','🎾','เทนนิส',2], ['stuff','🏐','วอลเลย์บอล',3], ['stuff','🎲','ลูกเต๋า',2], ['stuff','🃏','ไพ่',1],
+    ['stuff','🪁','ว่าว',1], ['stuff','🎻','ไวโอลิน',3], ['stuff','🎺','แตร',1], ['stuff','🥁','กลอง',1]
+  ];
+  var WORDS = RAW.map(function (r) { return { c: r[0], e: r[1], t: r[2], s: r[3] }; });
+
+  /* ---------- settings ---------- */
+  var KEY = 'tayakham-hunlang-v1';
+  var SEC_OPTS = [45, 60, 90];
+  var RND_OPTS = [1, 2, 3];
+  var DEF = {
+    players: ['ผู้เล่น 1', 'ผู้เล่น 2', 'ผู้เล่น 3'],
+    seconds: 60, rounds: 1, cats: Object.keys(CATS), hide: false, sound: true
+  };
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function load() {
+    var s = clone(DEF), r = null;
+    try { r = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { r = null; }
+    if (r && typeof r === 'object') {
+      if (Array.isArray(r.players) && r.players.length >= 1 && r.players.length <= 8) {
+        s.players = r.players.map(function (x) { return String(x == null ? '' : x).slice(0, 16); });
+      }
+      if (SEC_OPTS.indexOf(r.seconds) >= 0) s.seconds = r.seconds;
+      if (RND_OPTS.indexOf(r.rounds) >= 0) s.rounds = r.rounds;
+      if (Array.isArray(r.cats)) {
+        var c = r.cats.filter(function (k) { return CATS[k]; });
+        if (c.length) s.cats = c;
+      }
+      if (typeof r.hide === 'boolean') s.hide = r.hide;
+      if (typeof r.sound === 'boolean') s.sound = r.sound;
+    }
+    return s;
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
+  var S = load();
+
+  /* ---------- helpers ---------- */
+  function $(sel) { return document.querySelector(sel); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* ---------- audio ---------- */
+  var ac = null;
+  function initAudio() {
+    try {
+      if (!ac) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) ac = new AC(); }
+      if (ac && ac.state === 'suspended') ac.resume();
+    } catch (e) { ac = null; }
+  }
+  function beep(freq, dur, type, vol, delay) {
+    if (!S.sound || !ac) return;
+    try {
+      var t0 = ac.currentTime + (delay || 0);
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.15, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t0); o.stop(t0 + dur + 0.03);
+    } catch (e) { /* ignore */ }
+  }
+  function sndOk() { beep(660, 0.12, 'sine', 0.18); beep(990, 0.2, 'sine', 0.18, 0.1); }
+  function sndSkip() { beep(240, 0.16, 'triangle', 0.18); }
+  function sndEnd() { beep(300, 0.25, 'sawtooth', 0.12); beep(300, 0.25, 'sawtooth', 0.12, 0.3); beep(200, 0.5, 'sawtooth', 0.14, 0.6); }
+
+  /* ---------- wake lock ---------- */
+  var wl = null;
+  function wake() {
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wl = l; }, function () {}); } catch (e) { /* ignore */ }
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && G) wake();
+  });
+
+  /* ---------- views ---------- */
+  var VIEWS = ['setup', 'hand', 'count', 'play', 'result', 'final'];
+  var current = 'setup';
+  function show(v) {
+    current = v;
+    VIEWS.forEach(function (n) { $('#v-' + n).hidden = n !== v; });
+    document.body.classList.toggle('playing', v === 'play');
+    window.scrollTo(0, 0);
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (v !== 'play') {
+      var f = $('#v-' + v + ' [data-focus]');
+      if (f) try { f.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+  }
+
+  /* ---------- setup UI ---------- */
+  function renderPlayers() {
+    var box = $('#players');
+    box.textContent = '';
+    S.players.forEach(function (name, i) {
+      var row = el('div', 'prow');
+      var inp = document.createElement('input');
+      inp.type = 'text'; inp.id = 'player-' + i; inp.value = name; inp.maxLength = 16;
+      inp.autocomplete = 'off'; inp.placeholder = 'ผู้เล่น ' + (i + 1);
+      inp.setAttribute('aria-label', 'ชื่อผู้เล่นคนที่ ' + (i + 1));
+      inp.addEventListener('input', function () { S.players[i] = inp.value; save(); });
+      var rm = el('button', 'ghost', 'ลบ');
+      rm.type = 'button'; rm.disabled = S.players.length <= 1;
+      rm.setAttribute('aria-label', 'ลบผู้เล่นคนที่ ' + (i + 1));
+      rm.addEventListener('click', function () { S.players.splice(i, 1); save(); renderPlayers(); });
+      row.appendChild(inp); row.appendChild(rm);
+      box.appendChild(row);
+    });
+    $('#add-player').disabled = S.players.length >= 8;
+  }
+  function seg(id, opts, key, fmt) {
+    var box = $(id);
+    box.textContent = '';
+    opts.forEach(function (v) {
+      var b = el('button', null, fmt(v));
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(S[key] === v));
+      b.addEventListener('click', function () { S[key] = v; save(); seg(id, opts, key, fmt); });
+      box.appendChild(b);
+    });
+  }
+  function countIn(cat) { return WORDS.filter(function (w) { return w.c === cat; }).length; }
+  function renderChips() {
+    var box = $('#chips');
+    box.textContent = '';
+    Object.keys(CATS).forEach(function (k) {
+      var on = S.cats.indexOf(k) >= 0;
+      var b = el('button', 'chip');
+      b.type = 'button';
+      b.style.setProperty('--c', CATS[k].color);
+      b.setAttribute('aria-pressed', String(on));
+      b.appendChild(document.createTextNode(CATS[k].name + ' '));
+      b.appendChild(el('small', null, String(countIn(k))));
+      b.addEventListener('click', function () {
+        var i = S.cats.indexOf(k);
+        if (i >= 0) { if (S.cats.length > 1) S.cats.splice(i, 1); } else S.cats.push(k);
+        save(); renderChips();
+      });
+      box.appendChild(b);
+    });
+    var n = WORDS.filter(function (w) { return S.cats.indexOf(w.c) >= 0; }).length;
+    $('#wordinfo').textContent = 'มี ' + n + ' คำใน ' + S.cats.length + ' หมวด ทุกคำไม่เกิน 4 พยางค์';
+  }
+  function renderSetup() {
+    renderPlayers();
+    seg('#seg-sec', SEC_OPTS, 'seconds', function (v) { return String(v); });
+    seg('#seg-rnd', RND_OPTS, 'rounds', function (v) { return v + ' รอบ'; });
+    renderChips();
+    $('#opt-sound').checked = S.sound;
+  }
+  $('#add-player').addEventListener('click', function () {
+    if (S.players.length >= 8) return;
+    S.players.push('');
+    save(); renderPlayers();
+    var last = $('#player-' + (S.players.length - 1));
+    if (last) last.focus();
+  });
+  $('#opt-sound').addEventListener('change', function (e) { S.sound = e.target.checked; save(); if (S.sound) { initAudio(); sndOk(); } });
+  $('#setup-form').addEventListener('submit', function (e) { e.preventDefault(); startGame(); });
+
+  /* ---------- game ---------- */
+  var G = null;
+
+  function names() {
+    return S.players.map(function (n, i) { return (n || '').trim() || ('ผู้เล่น ' + (i + 1)); });
+  }
+  function buildDeck() {
+    var idx = [];
+    WORDS.forEach(function (w, i) { if (S.cats.indexOf(w.c) >= 0) idx.push(i); });
+    for (var i = idx.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+    }
+    G.deck = idx; G.di = 0;
+  }
+  function draw() {
+    if (G.di >= G.deck.length) buildDeck();
+    var w = WORDS[G.deck[G.di++]];
+    if (w === G.cur && G.deck.length > 1) {
+      if (G.di >= G.deck.length) buildDeck();
+      w = WORDS[G.deck[G.di++]];
+    }
+    return w;
+  }
+
+  function startGame() {
+    initAudio(); wake();
+    var nm = names();
+    var turns = [];
+    for (var r = 1; r <= S.rounds; r++) nm.forEach(function (n, pi) { turns.push({ pi: pi, r: r }); });
+    G = {
+      nm: nm, turns: turns, t: 0, scores: nm.map(function () { return 0; }),
+      deck: [], di: 0, cur: null, correct: [], skipped: [], timer: null, cd: null,
+      paused: false, endAt: 0, rem: 0, total: S.seconds * 1000, lastAns: 0, lastSec: -1
+    };
+    buildDeck();
+    showHand();
+  }
+
+  function showHand() {
+    var t = G.turns[G.t];
+    $('#h-meta').textContent = 'รอบที่ ' + t.r + ' จาก ' + S.rounds + ' · ตาที่ ' + (G.t + 1) + ' จาก ' + G.turns.length;
+    $('#h-name').textContent = G.nm[t.pi];
+    show('hand');
+  }
+
+  function runCount() {
+    initAudio();
+    show('count');
+    var n = 3, box = $('#count-n');
+    function step() {
+      if (!G) return;
+      if (n === 0) { beep(880, 0.35, 'sine', 0.2); beginPlay(); return; }
+      box.textContent = n;
+      box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+      beep(520, 0.12, 'sine', 0.16);
+      n--;
+      G.cd = setTimeout(step, 800);
+    }
+    step();
+  }
+
+  function beginPlay() {
+    var t = G.turns[G.t];
+    G.correct = []; G.skipped = []; G.paused = false; G.lastSec = -1; G.cur = null;
+    G.endAt = performance.now() + G.total;
+    $('#pl-name').textContent = G.nm[t.pi];
+    $('#score').textContent = '0';
+    $('#pauselayer').hidden = true;
+    $('#pause').textContent = 'พัก';
+    show('play');
+    nextWord();
+    tick();
+    G.timer = setInterval(tick, 100);
+  }
+
+  function tick() {
+    if (!G || G.paused) return;
+    var rem = Math.max(0, G.endAt - performance.now());
+    var sec = Math.ceil(rem / 1000);
+    $('#timer').textContent = sec;
+    $('#bar').style.transform = 'scaleX(' + (rem / G.total) + ')';
+    $('#v-play').classList.toggle('urgent', rem <= 10000);
+    if (sec !== G.lastSec) {
+      G.lastSec = sec;
+      if (sec <= 5 && sec > 0) beep(1000, 0.08, 'square', 0.07);
+    }
+    if (rem <= 0) endTurn();
+  }
+
+  function nextWord() {
+    var w = draw();
+    G.cur = w;
+    var c = CATS[w.c];
+    document.body.style.setProperty('--stage', c.color);
+    $('#v-play').style.setProperty('--stage', c.color);
+    $('#catchip').textContent = c.name;
+    $('#emoji').textContent = w.e;
+    $('#word').textContent = w.t;
+    var card = $('#card');
+    card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop');
+  }
+
+  function flash(ok) {
+    var st = $('#v-play');
+    st.classList.remove('f-ok', 'f-skip'); void st.offsetWidth;
+    st.classList.add(ok ? 'f-ok' : 'f-skip');
+  }
+
+  function answer(ok) {
+    if (!G || current !== 'play' || !G.timer || G.paused) return;
+    var now = performance.now();
+    if (now - G.lastAns < 220) return;
+    G.lastAns = now;
+    if (ok) { G.correct.push(G.cur); $('#score').textContent = G.correct.length; sndOk(); }
+    else { G.skipped.push(G.cur); sndSkip(); }
+    flash(ok);
+    nextWord();
+  }
+
+  function pause() {
+    if (!G || !G.timer || G.paused) return;
+    G.paused = true;
+    G.rem = Math.max(0, G.endAt - performance.now());
+    $('#pauselayer').hidden = false;
+    $('#pause').textContent = 'พักอยู่';
+  }
+  function resume() {
+    if (!G || !G.paused) return;
+    G.paused = false;
+    G.endAt = performance.now() + G.rem;
+    $('#pauselayer').hidden = true;
+    $('#pause').textContent = 'พัก';
+  }
+
+  function stopTimers() {
+    if (G) {
+      if (G.timer) { clearInterval(G.timer); G.timer = null; }
+      if (G.cd) { clearTimeout(G.cd); G.cd = null; }
+    }
+  }
+  function quit() {
+    stopTimers();
+    G = null;
+    $('#v-play').classList.remove('urgent', 'f-ok', 'f-skip');
+    show('setup');
+  }
+
+  function wordItem(w) {
+    var li = el('li', null, w.e + ' ' + w.t);
+    return li;
+  }
+  function fillList(id, arr, emptyText) {
+    var ul = $(id);
+    ul.textContent = '';
+    ul.classList.toggle('none', arr.length === 0);
+    if (!arr.length) { ul.appendChild(el('li', null, emptyText)); return; }
+    arr.forEach(function (w) { ul.appendChild(wordItem(w)); });
+  }
+
+  function endTurn() {
+    stopTimers();
+    var t = G.turns[G.t];
+    G.scores[t.pi] += G.correct.length;
+    sndEnd();
+    $('#v-play').classList.remove('urgent', 'f-ok', 'f-skip');
+    $('#r-name').textContent = G.nm[t.pi];
+    $('#r-score').textContent = G.correct.length;
+    fillList('#r-ok', G.correct, 'ยังไม่มีคำที่ทายถูก');
+    fillList('#r-sk', G.skipped, 'ไม่ได้ข้ามคำไหน');
+    $('#r-totals').textContent = 'คะแนนรวม: ' + G.nm.map(function (n, i) { return n + ' ' + G.scores[i]; }).join(' · ');
+    var last = G.t >= G.turns.length - 1;
+    $('#r-next').textContent = last ? 'ดูคะแนนรวม' : 'ตาต่อไป: ' + G.nm[G.turns[G.t + 1].pi];
+    show('result');
+  }
+
+  function showFinal() {
+    var rows = G.nm.map(function (n, i) { return { n: n, s: G.scores[i] }; })
+      .sort(function (a, b) { return b.s - a.s; });
+    var max = Math.max(1, rows[0].s);
+    var winners = rows.filter(function (r) { return r.s === rows[0].s; });
+    $('#f-champ').textContent = winners.length === 1
+      ? 'ผู้ชนะคือ ' + winners[0].n
+      : 'เสมอกัน ' + winners.map(function (r) { return r.n; }).join(' และ ');
+    var ol = $('#f-board');
+    ol.textContent = '';
+    var rank = 0, prev = null;
+    rows.forEach(function (r, i) {
+      if (r.s !== prev) { rank = i + 1; prev = r.s; }
+      var li = el('li', 'brow' + (rank === 1 ? ' first' : ''));
+      var fill = el('div', 'fill');
+      fill.style.width = (r.s / max * 100) + '%';
+      li.appendChild(fill);
+      li.appendChild(el('div', 'rank', String(rank)));
+      li.appendChild(el('div', 'bn', r.n));
+      li.appendChild(el('div', 'bs', String(r.s)));
+      ol.appendChild(li);
+    });
+    show('final');
+  }
+
+  /* ---------- wiring ---------- */
+  $('#h-start').addEventListener('click', runCount);
+  $('#h-quit').addEventListener('click', quit);
+  $('#ok').addEventListener('click', function () { answer(true); });
+  $('#skip').addEventListener('click', function () { answer(false); });
+  $('#pause').addEventListener('click', function () { if (G && G.paused) resume(); else pause(); });
+  $('#resume').addEventListener('click', resume);
+  $('#quit-play').addEventListener('click', quit);
+  $('#r-next').addEventListener('click', function () {
+    G.t++;
+    if (G.t >= G.turns.length) showFinal(); else showHand();
+  });
+  $('#f-again').addEventListener('click', startGame);
+  $('#f-setup').addEventListener('click', quit);
+
+  document.addEventListener('keydown', function (e) {
+    if (!G || current !== 'play') return;
+    var k = e.key;
+    if (k === ' ' || k === 'Enter' || k === 'ArrowRight') { e.preventDefault(); answer(true); }
+    else if (k === 'ArrowLeft' || k === 's' || k === 'S' || k === 'Backspace') { e.preventDefault(); answer(false); }
+    else if (k === 'p' || k === 'P' || k === 'Escape') { e.preventDefault(); if (G.paused) resume(); else pause(); }
+  });
+
+  renderSetup();
+  show('setup');
+})();
+</script>
+</body>
+</html>
