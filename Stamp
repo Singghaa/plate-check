@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="FmwHHIZvIeDSc7B5G9LkytfkzZrQMlEgCKXGyMVk">
+    <title>PR Stamp - ระบบแสตมป์ด่วน</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <style>
+        body {
+            background-color: #CBD8EB;
+            font-family: 'Sarabun', sans-serif;
+        }
+
+        /* Improve usability on iPhone & small screens */
+        @media (max-width: 576px) {
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                padding-left: 0;
+                padding-right: 0;
+            }
+        }
+
+        /* Prevent iOS from zooming when focusing inputs */
+        input,
+        button,
+        select,
+        textarea {
+            font-size: 16px;
+        }
+
+        .card-custom {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-box {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 5px solid #198754;
+        }
+
+        .mock-data-box {
+            background-color: #e9ecef;
+            font-family: monospace;
+            font-size: 0.85rem;
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="pr-app" class="container mt-5" v-cloak>
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-dark"><i class="fas fa-bolt text-warning"></i> Fast E-Stamp</h2>
+                    <p class="text-muted">แสตมป์จอดรถด้วยการจำลองข้อมูลใบเสร็จ (Bypass OCR)</p>
+                </div>
+
+                <div class="card card-custom mb-4">
+                    <div class="card-body p-4">
+
+                        <!-- Radio buttons for stamp duration -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold"><i class="fas fa-clock text-primary"></i>
+                                เลือกชั่วโมงจอดฟรี</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="stampHours" id="hours2" value="2"
+                                        v-model="selectedHours" @change="generateDynamicMockData">
+                                    <label class="form-check-label fw-semibold" for="hours2">2 ชั่วโมง</label>
+                                    <div class="text-muted" style="font-size: 0.75rem;">฿500 – 799</div>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="stampHours" id="hours4" value="4"
+                                        v-model="selectedHours" @change="generateDynamicMockData">
+                                    <label class="form-check-label fw-semibold" for="hours4">4 ชั่วโมง</label>
+                                    <div class="text-muted" style="font-size: 0.75rem;">฿800 – 1,499</div>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="stampHours" id="hours10" value="8"
+                                        v-model="selectedHours" @change="generateDynamicMockData">
+                                    <label class="form-check-label fw-semibold" for="hours6">8 ชั่วโมง</label>
+                                    <div class="text-muted" style="font-size: 0.75rem;">฿1,500 – 1,899</div>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="stampHours" id="hours13" value="10"
+                                        v-model="selectedHours" @change="generateDynamicMockData">
+                                    <label class="form-check-label fw-semibold" for="hours6">10 ชั่วโมง</label>
+                                    <div class="text-muted" style="font-size: 0.75rem;">฿1,500 – 1,899</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">หมายเลขบัตรจอดรถ (Ticket ID)</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-white"><i class="fas fa-qrcode text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0" v-model="ticketNumber"
+                                    @keyup.enter="searchTicket" placeholder="ระบุ Ticket ID เช่น 260305..."
+                                    ref="ticketInput" autofocus>
+                                <button class="btn btn-dark" type="button" @click="searchTicket" :disabled="isLoading">
+                                    <i class="fas fa-search" v-if="!isLoading"></i>
+                                    <span class="spinner-border spinner-border-sm" v-if="isLoading"></span> ดึงข้อมูล
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="ticketInfo" class="animate__animated animate__fadeIn">
+                            <div class="info-box mb-3">
+                                <h5>ข้อมูลที่ตรวจสอบพบ</h5>
+                                <div class="fs-4 fw-bold text-dark mb-2">บัตร: {{ ticketInfo.id }}</div>
+                                <p class="mb-0 text-muted">กดปุ่มด้านล่างเพื่อใช้ข้อมูลจำลอง () ในการแสตมป์ทันที</p>
+                            </div>
+
+                            <div class="mock-data-box mb-4">
+                                <strong class="text-primary"><i class="fas fa-code"></i> Payload จำลองที่จะส่งเข้าระบบ
+                                    (Full Mock Data):</strong>
+                                <pre class="bg-dark text-success p-3 rounded mt-2 mb-0"
+                                    style="font-size: 0.8rem; overflow-x: auto; white-space: pre-wrap;"><code>{{ formattedMockData }}</code></pre>
+                            </div>
+                        </div>
+
+                        <div v-if="errorMessage" class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i>
+                            {{ errorMessage }}</div>
+                        <div v-if="successMessage" class="alert alert-success fs-5"><i class="fas fa-check-circle"></i>
+                            {{ successMessage }}</div>
+
+                        <div class="d-grid gap-2" v-if="ticketInfo && !isStamped">
+                            <button class="btn btn-success btn-lg py-3 fw-bold" @click="confirmAndStamp"
+                                :disabled="isLoading">
+                                <span v-if="!isLoading"><i class="fas fa-stamp me-2"></i>
+                                    แสตมป์สิทธิ์จอดฟรีทันที!</span>
+                                <span v-else><span class="spinner-border spinner-border-sm"></span>
+                                    กำลังบันทึกข้อมูล...</span>
+                            </button>
+                            <button class="btn btn-outline-secondary mt-2" @click="resetForm"
+                                :disabled="isLoading">ยกเลิก</button>
+                        </div>
+
+                        <div class="d-grid gap-2" v-if="isStamped">
+                            <button class="btn btn-primary btn-lg py-3 fw-bold" @click="resetForm">
+                                <i class="fas fa-redo me-2"></i> ทำรายการคันต่อไป
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // Set Header สำหรับการยิง AJAX ใน Laravel
+        $.ajaxSetup({
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        });
+
+        new Vue({
+            el: '#pr-app',
+            data: {
+                ticketNumber: '',
+                ticketInfo: null,
+                isLoading: false,
+                errorMessage: '',
+                successMessage: '',
+                isStamped: false,
+                selectedHours: '8', // ค่าเริ่มต้น 6 ชั่วโมง
+
+                // เตรียมตัวแปรว่างไว้ก่อน เดี๋ยวเราจะสร้างข้อมูลใส่ตอนโหลดหน้าเว็บ
+                mockData: null
+            },
+            created() {
+                // เรียกใช้ฟังก์ชันสร้างข้อมูลจำลองทันทีที่เปิดหน้าเว็บ
+                this.generateDynamicMockData();
+            },
+            // ---> เพิ่มบล็อก computed ตรงนี้ <---
+            computed: {
+                formattedMockData() {
+                    // ตรวจสอบว่ามีข้อมูลหรือไม่ ถ้ามีให้แปลงเป็น JSON แบบเว้นวรรค (Indent) 4 spaces
+                    return this.mockData ? JSON.stringify(this.mockData, null, 4) : '';
+                }
+            },
+            methods: {
+
+                generateDynamicMockData() {
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() - 90); // ลบเวลา 90 นาที
+
+                    const YYYY = now.getFullYear();
+                    const MM = String(now.getMonth() + 1).padStart(2, '0');
+                    const DD = String(now.getDate()).padStart(2, '0');
+                    const HH = String(now.getHours()).padStart(2, '0');
+                    const mm = String(now.getMinutes()).padStart(2, '0');
+
+                    const YYYYMMDD = `${YYYY}${MM}${DD}`;
+                    const currentDate = `${YYYY}-${MM}-${DD}`;
+                    const currentOrgDate = `${DD}/${MM}/${YYYY}`;
+                    const currentTime = `${HH}:${mm}`;
+
+                    const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
+
+                    // กำหนดช่วงเงินตามชั่วโมงที่เลือก
+                    let minAmount, maxAmount;
+                    const hours = parseInt(this.selectedHours);
+                    if (hours === 2) {
+                        minAmount = 500;
+                        maxAmount = 799;
+                    } else if (hours === 4) {
+                        minAmount = 800;
+                        maxAmount = 1499;
+                    } else {
+                        // 6 ชั่วโมง (default)
+                        minAmount = 1500;
+                        maxAmount = 1899;
+                    }
+
+                    const totalAmount = Math.floor(Math.random() * (maxAmount - minAmount + 1)) + minAmount;
+                    const totalText = totalAmount.toFixed(2);
+
+                    // 1. สร้าง List ของร้านค้า และ Tax ID ที่คู่กัน
+                    const shopList = [
+                        { taxID: "0105561210741", name: "PIZZA COMPANY" },
+                        { taxID: "0105563035874", name: "SUSHIRO" },
+                        { taxID: "0105541008688", name: "STARBUCK" },
+                        { taxID: "0105554059987", name: "UNIQLO" },
+                        { taxID: "0107536000633", name: "BIG C" },
+                        { taxID: "0105561193073", name: "BONCHON CHICKEN" },
+                        { taxID: "0107561000013", name: "CAFE AMAZON" }
+                    ];
+
+                    // 2. สุ่มเลือกร้านค้า 1 ร้านจาก List
+                    const randomShop = shopList[Math.floor(Math.random() * shopList.length)];
+                    const taxID = randomShop.taxID;
+                    const shopName = randomShop.name;
+
+                    const keyString = `${YYYYMMDD}-${totalAmount}-${taxID}-${totalAmount}`;
+
+                    this.mockData = {
+                        ocr: {
+                            date: currentDate,
+                            code: randomCode,
+                            orgDate: currentOrgDate,
+                            time: currentTime,
+                            taxID: taxID,
+                            shop_name: shopName, // เพิ่มฟิลด์ชื่อร้านเข้ามาใน Payload
+                            total: totalAmount,
+                            totalText: totalText,
+                            key: keyString,
+                            image: `receipts/${YYYYMMDD}/${keyString}.`
+                        },
+                        cal: {
+                            total: totalAmount.toString(),
+                            total_label: totalText,
+                            free_hour: String(hours),
+                            estamp_time: hours * 60,
+                            free_hour_label: `${hours} ชั่วโมง`
+                        }
+                    };
+                },
+
+                // (ฟังก์ชัน searchTicket กับ confirmAndStamp ใช้ของเดิมได้เลย)
+
+
+
+                searchTicket() {
+                    if (!this.ticketNumber.trim()) return;
+
+                    this.isLoading = true;
+                    this.errorMessage = '';
+                    this.successMessage = '';
+                    this.isStamped = false;
+
+                    setTimeout(() => {
+                        this.isLoading = false;
+                        this.ticketInfo = { id: this.ticketNumber };
+                        // สุ่มข้อมูลบิลใหม่ทุกครั้งที่ค้นหาบัตรใบใหม่
+                        this.generateDynamicMockData();
+                    }, 500);
+                },
+
+                confirmAndStamp() {
+                    if (confirm(`ยืนยันการแสตมป์ ${this.mockData.cal.free_hour_label} ให้กับบัตรหมายเลข ${this.ticketInfo.id} หรือไม่?`)) {
+                        this.submitToSystem();
+                    }
+                },
+
+                submitToSystem() {
+                    this.isLoading = true;
+
+                    // สร้าง Payload
+                    const formData = {
+                        code: this.ticketInfo.id,
+                        estamp_time: this.mockData.cal.estamp_time,
+                        estamp_code: 'SELF', // แนะนำให้เปลี่ยนจาก SELF เป็น PR_COUNTER เพื่อแยกข้อมูลใน Report
+                        invoices: [{
+                            id: null,
+                            code: this.mockData.ocr.code,
+                            total: this.mockData.ocr.total,
+                            taxid: this.mockData.ocr.taxID,
+                            taxID: this.mockData.ocr.taxID,
+                            shop_name: this.mockData.ocr.shop_name,
+                            selected_shop: this.mockData.ocr.shop_name,
+                            date: this.mockData.ocr.date,
+                            time: this.mockData.ocr.time,
+                            image: this.mockData.ocr.image,
+                            image_path: this.mockData.ocr.image,
+                            detail: this.mockData.ocr
+                        }]
+                    };
+
+                    console.log('Sending Payload:', formData);
+
+                    // ยิง API
+                    $.ajax({
+                        url: "https://payment.samyan-mitrtown.com/api/self-esamp",
+                        type: "POST",
+                        cache: false,
+                        data: formData,
+                        success: (response) => {
+                            this.isLoading = false;
+
+                            if (response.isSuccess) {
+                                this.isStamped = true;
+                                this.successMessage = `ทำรายการสำเร็จ! แสตมป์ ${this.mockData.cal.free_hour_label} ลงบัตรเรียบร้อยแล้ว (Ref: บิลเลขที่ ${this.mockData.ocr.code})`;
+                            } else {
+                                this.errorMessage = 'ระบบหลังบ้านปฏิเสธการบันทึก: ' + (response.message || 'ไม่ทราบสาเหตุ');
+                            }
+                        },
+                        error: (xhr) => {
+                            this.isLoading = false;
+                            this.errorMessage = `เกิดข้อผิดพลาดในการเชื่อมต่อ API (Status: ${xhr.status})`;
+                        }
+                    });
+                },
+
+                resetForm() {
+                    this.ticketNumber = '';
+                    this.ticketInfo = null;
+                    this.errorMessage = '';
+                    this.successMessage = '';
+                    this.isStamped = false;
+                    this.$nextTick(() => { this.$refs.ticketInput.focus(); });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
